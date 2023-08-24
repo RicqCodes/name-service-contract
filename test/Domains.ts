@@ -8,7 +8,7 @@ describe("Domain Contract", function () {
   let addr2: any;
 
   beforeEach(async function () {
-    domainsContract = await ethers.deployContract("Domains", ["zk"]);
+    domainsContract = await ethers.deployContract("Domains", ["smt"]);
 
     [owner, addr1, addr2] = await ethers.getSigners();
   });

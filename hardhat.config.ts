@@ -30,6 +30,16 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.BASESCAN,
+    customChains: [
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org",
+        },
+      },
+    ],
   },
 };
 

@@ -2,7 +2,7 @@ import { ethers, upgrades } from "hardhat";
 
 const main = async () => {
   const Domain = await ethers.getContractFactory("Domains");
-  const domain = await upgrades.deployProxy(Domain, ["vlog"]);
+  const domain = await upgrades.deployProxy(Domain, ["base"]);
 
   await domain.waitForDeployment();
 

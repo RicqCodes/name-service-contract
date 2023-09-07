@@ -18,6 +18,7 @@ contract Domains is
     CountersUpgradeable.Counter private _tokenIds;
 
     string public tld;
+    string baseURI;
 
     struct DomainInfo {
         address owner;
@@ -32,9 +33,8 @@ contract Domains is
     mapping(address => string) public userAssociatedName;
     mapping(string => DomainInfo) public domains;
     mapping(string => RecordInfo) public records;
-
-    string baseURI;
     mapping(uint256 => string) public tokenIdToDomain;
+    mapping(address => bool) private whitelistAdmins;
 
     // Define an event to emit when a new NFT is minted
     event DomainRegistered(
@@ -49,9 +49,10 @@ contract Domains is
     );
 
     function initialize(string memory _tld) public initializer {
-        __ERC721_init("Sandler Monks", "SMT");
+        __ERC721_init("Baseid", "BID");
         __Ownable_init();
         tld = _tld;
+        baseURI = "https://api.baseid.domains/api/v1/walletid/";
     }
 
     function registerDomain(string calldata name) public payable {
@@ -60,23 +61,18 @@ contract Domains is
             "domain name already exists"
         );
         require(bytes(name).length > 2, "length is minimum of 3 characters");
-        require(msg.value >= price(name), "Not enough Matic paid");
+        require(msg.value >= price(name), "Not enough ETH paid");
 
-        uint256 newRecordId = _tokenIds.current();
+        _register(name);
+    }
 
-        // Construct the domain name
-        string memory domainName = string(abi.encodePacked(name, ".", tld));
+    function adminDomain(string calldata name) public {
+        require(
+            msg.sender == owner() || whitelistAdmins[msg.sender],
+            "Not whitelisted as admin"
+        );
 
-        // Mint the NFT and update the domains mapping
-        _safeMint(msg.sender, newRecordId);
-
-        tokenIdToDomain[newRecordId] = name;
-        domains[name] = DomainInfo({owner: msg.sender, tokenId: newRecordId});
-
-        // Emit the event for reverse address-to-domain lookup
-        emit DomainRegistered(msg.sender, newRecordId, domainName);
-
-        _tokenIds.increment();
+        _register(name);
     }
 
     // Overwrite the safeTransferFrom function to update the record
@@ -105,7 +101,24 @@ contract Domains is
         domains[domainName] = DomainInfo({owner: to, tokenId: tokenId});
     }
 
-    function setAssociatedName(string calldata name) public {
+    function _register(string calldata name) private {
+        uint256 newRecordId = _tokenIds.current();
+
+        // Construct the domain name
+        string memory domainName = string(abi.encodePacked(name, ".", tld));
+
+        // Mint the NFT and update the domains mapping
+        _safeMint(msg.sender, newRecordId);
+
+        tokenIdToDomain[newRecordId] = name;
+        domains[name] = DomainInfo({owner: msg.sender, tokenId: newRecordId});
+
+        // Emit the event for reverse address-to-domain lookup
+        emit DomainRegistered(msg.sender, newRecordId, domainName);
+        _tokenIds.increment();
+    }
+
+    function setAssociatedName(string calldata name) public payable {
         require(domains[name].owner == msg.sender, "You don't own this name");
         string memory domainName = string(abi.encodePacked(name, ".", tld));
         userAssociatedName[msg.sender] = domainName;
@@ -119,15 +132,21 @@ contract Domains is
     }
 
     // This function will give us the price of a domain based on length
-    function price(string calldata name) public pure returns (uint256) {
+    function price(string calldata name) public view returns (uint256) {
         uint256 len = StringUtils.strlen(name);
         require(len > 2, "name cannot be less than 3 characters");
         if (len == 3) {
-            return 5 * 10 ** 15;
-        } else if (len == 4) {
-            return 4 * 10 ** 15;
+            return 5 * 10 ** 15; // 0.005
+        } else if (len >= 4 && len < 7) {
+            return 4 * 10 ** 15; // 0.004
+        } else if (len >= 7) {
+            if (_tokenIds.current() <= 199) {
+                return 0 * 10 ** 15;
+            } else {
+                return 2 * 10 ** 15; // 0.002
+            }
         } else {
-            return 2 * 10 ** 15;
+            revert();
         }
     }
 
@@ -138,13 +157,20 @@ contract Domains is
         return domains[name].owner;
     }
 
-    function setRecord(string calldata name, string calldata record) public {
+    function setRecord(
+        string calldata name,
+        string calldata record
+    ) public payable {
         // Check that the owner is the transaction sender
         require(domains[name].owner == msg.sender, "You don't own this name");
         require(!records[name].isRecordSet, "Record already set");
 
         records[name].record = record;
         records[name].isRecordSet = true;
+    }
+
+    function setAdminWhitelist(address addr, bool value) public onlyOwner {
+        whitelistAdmins[addr] = value;
     }
 
     function getRecord(

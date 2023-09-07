@@ -2,13 +2,14 @@
 // pragma solidity ^0.8.10;
 
 // import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+// // import "@penzeppelin/contracts/access/Ownable";
 // import "@openzeppelin/contracts/utils/Counters.sol";
+// import "@openzeppelin/contracts/access/Ownable.sol";
 
 // import {StringUtils} from "./libraries/StringUtils.sol";
 
-// // import "hardhat/console.sol";
 
-// contract Domains is ERC721URIStorage {
+// contract Domains is ERC721URIStorage, Ownable {
 //     using Counters for Counters.Counter;
 //     Counters.Counter private _tokenIds;
 
@@ -24,12 +25,12 @@
 //         string record;
 //     }
 
-//     mapping(address => string) public userAssociatedName;
+//    mapping(address => string) public userAssociatedName;
 //     mapping(string => DomainInfo) public domains;
 //     mapping(string => RecordInfo) public records;
+//     mapping(uint256 => string) public tokenIdToDomain;
 
-//     address payable public owner;
-//     string baseURI = "http://localhost:8000/api/test/";
+//     string baseURI;
 
 //     // Define an event to emit when a new NFT is minted
 //     event DomainRegistered(
@@ -43,8 +44,7 @@
 //         uint256 timestamp
 //     );
 
-//     constructor(string memory _tld) payable ERC721("Sandler Monks", "SMT") {
-//         owner = payable(msg.sender);
+//     constructor(string memory _tld) payable ERC721("Sandler Monks", "SM") {    
 //         tld = _tld;
 //     }
 
@@ -64,6 +64,7 @@
 //         // Mint the NFT and update the domains mapping
 //         _safeMint(msg.sender, newRecordId);
 
+//         tokenIdToDomain[newRecordId] = name;
 //         domains[name] = DomainInfo({owner: msg.sender, tokenId: newRecordId});
 
 //         // Emit the event for reverse address-to-domain lookup
@@ -72,10 +73,36 @@
 //         _tokenIds.increment();
 //     }
 
-//     function setAssociatedName(string memory name) public {
+//     function safeTransferFrom(
+//         address from,
+//         address to,
+//         uint256 tokenId
+//     ) public override(ERC721, IERC721) {
+//         safeTransferFrom(from, to, tokenId, "");
+//     }
+
+//     function safeTransferFrom(
+//         address from,
+//         address to,
+//         uint256 tokenId,
+//         bytes memory data
+//     ) public override(ERC721, IERC721)  {
+//         string memory domainName = tokenIdToDomain[tokenId];
+//         require(
+//             domains[domainName].owner == from,
+//             "You can't transfer this token, you dont own it!"
+//         );
+
+//         // Transfer the NFT domain to the new owner
+//         _safeTransfer(from, to, tokenId, data);
+//         domains[domainName] = DomainInfo({owner: to, tokenId: tokenId});
+//     }
+
+//    function setAssociatedName(string calldata name) public {
 //         require(domains[name].owner == msg.sender, "You don't own this name");
-//         userAssociatedName[msg.sender] = name;
-//         emit AssociatedNameSet(msg.sender, name, block.timestamp);
+//         string memory domainName = string(abi.encodePacked(name, ".", tld));
+//         userAssociatedName[msg.sender] = domainName;
+//         emit AssociatedNameSet(msg.sender, domainName, block.timestamp);
 //     }
 
 //     function getAssociatedName(
@@ -119,15 +146,6 @@
 //         return records[name].record;
 //     }
 
-//     modifier onlyOwner() {
-//         require(isOwner());
-//         _;
-//     }
-
-//     function isOwner() public view returns (bool) {
-//         return msg.sender == owner;
-//     }
-
 //     function tokenURI(
 //         uint256 tokenId
 //     ) public view virtual override returns (string memory) {
@@ -147,10 +165,11 @@
 //         baseURI = newBaseURI;
 //     }
 
-//     function withdraw() public payable onlyOwner {
-//         (bool success, ) = payable(msg.sender).call{
-//             value: address(this).balance
-//         }("");
+//     function withdraw() public onlyOwner {
+//         require(address(this).balance > 0, "No balance to withdraw");
+//         (bool success, ) = payable(owner()).call{value: address(this).balance}(
+//             ""
+//         );
 //         require(success);
 //     }
 // }

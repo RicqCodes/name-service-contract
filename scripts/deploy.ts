@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 
 const main = async () => {
-  const domain = await ethers.deployContract("Domains", ["smt"]);
+  const domain = await ethers.deployContract("Domains", ["bsc"]);
 
   await domain.waitForDeployment();
 
